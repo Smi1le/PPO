@@ -1,39 +1,28 @@
 #include "GameLayer.h"
-#include "MenuScene.h"
 #include "TransitionalScene.h"
+#include "GameOverScene.h"
 #include "cocostudio/CocoStudio.h"
 #include "ui/CocosGUI.h"
 #include "Config.h"
 
 USING_NS_CC;
 
-static int g_score;
-static float g_acc;
-static int g_level;
-static int g_life;
+static std::shared_ptr<CGameState> g_gameState;
 
 using namespace cocostudio::timeline;
 
-Scene* CGameLayer::createScene(int score, float acc, int level, int life)
+Scene* CGameLayer::createScene(std::shared_ptr<CGameState> gameState)
 {
-    //auto scene = Scene::create();
 	auto scene = Scene::createWithPhysics();
 	scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
 	scene->getPhysicsWorld()->setGravity(Vec2(0, 0));
-    //auto layer = CGameLayer::create();
-	g_acc = acc;
-	g_level = level;
-	g_life = life;
-	//m_playerScore = g_level;
+	g_gameState = gameState;
 	auto layer = CGameLayer::create();
 	layer->SetPhysicsWorld(scene->getPhysicsWorld());
-	g_score = score;
     scene->addChild(layer);
-
     return scene;
 }
 
-// on "init" you need to initialize your instance
 bool CGameLayer::init()
 {
 	if (!Layer::init())
@@ -52,8 +41,6 @@ bool CGameLayer::init()
 
 	this->addChild(menu);
 
-
-	m_playerScore = 0;
 	m_screenSize = CCDirector::sharedDirector()->getWinSize();
 
 	auto sprite = GameSprite::create("background.png");
@@ -71,15 +58,15 @@ bool CGameLayer::init()
 	addChild(gateNode);
 	
 
-	std::pair<float, float> coordinates = { 0.1f, 0.85f };
+	Point coordinates = { 0.1f, 0.85f };
 	for (int i = 1; i <= MAX_NUMBER_BLOCKS; ++i)
 	{
-		CBlock* spr = new CBlock(this, ccp(coordinates.first, coordinates.second), TAG_START_BLOCK + i);
+		CBlock* spr = new CBlock(this, ccp(coordinates.x, coordinates.y), TAG_START_BLOCK + i);
 		m_blocks.push_back(spr);
-		coordinates.first += 0.1f;
+		coordinates.x += 0.1f;
 		if (i % 9 == 0)
 		{
-			coordinates = { 0.1f, coordinates.second - 0.05f };
+			coordinates = { 0.1f, coordinates.y - 0.05f };
 		}
 	}
 
@@ -90,12 +77,9 @@ bool CGameLayer::init()
 	edgeNode->setPhysicsBody(edgeBody);
 	this->addChild(edgeNode);
 	
-	m_player1 = new CRacket(this);
-	CCLOG("g_acc");
-	CCLOG(std::to_string(g_acc).c_str());
-	CCLOG(std::to_string(g_level).c_str());
-	CBall *_ball = new CBall(this, g_acc * g_level);
-	//_ball->setTag(TAG_BALL);
+	m_player = new CRacket(this);
+	
+	CBall *_ball = new CBall(this, g_gameState->m_acc * g_gameState->m_level, m_player->GetPosition());
 	m_ball.push_back(_ball);
 
 	m_labelScore = CCLabelTTF::create("You score", "Arial", SIZE_LABEL);
@@ -104,7 +88,7 @@ bool CGameLayer::init()
 	m_labelScore->setTag(TAG_SCORE_LABEL);
 	this->addChild(m_labelScore);
 
-	m_playerScoreLabel = CCLabelTTF::create(std::to_string(g_score).c_str(), "Arial", SIZE_LABEL);
+	m_playerScoreLabel = CCLabelTTF::create(std::to_string(g_gameState->m_score).c_str(), "Arial", SIZE_LABEL);
 	m_playerScoreLabel->setPosition(ccp(135, m_visibleSize.height - SIZE_LABEL));
 	m_playerScoreLabel->setColor(COLOR_LABEL);
 	m_playerScoreLabel->setTag(TAG_PLAYER_SCORE_LABEL);
@@ -131,13 +115,19 @@ void CGameLayer::update(float dt)
 {
 	if (m_blocks.empty())
 	{
-		gotoGameOverScene(this);
+		gotoTrancScene(this);
 	}
-	if (g_life == -1)
+	if (g_gameState->m_life == -1)
 	{
-		gotoGameOverScene(this);
+		gotoGameOver(this);
 	}
 
+}
+
+void CGameLayer::gotoGameOver(cocos2d::Ref *sender)
+{
+	auto scene = CGameOverScene::createScene(g_gameState);
+	Director::getInstance()->replaceScene(TransitionFlipX::create(1, scene));
 }
 
 bool CGameLayer::onContactBegin(cocos2d::PhysicsContact &contact)
@@ -150,14 +140,15 @@ bool CGameLayer::onContactBegin(cocos2d::PhysicsContact &contact)
 		((MASK_BALL == b->getCollisionBitmask()) &&
 			(BORDER_CONTACT_BITMASK == a->getCollisionBitmask())))
 	{
-		--g_life;
+		--g_gameState->m_life;
 		this->removeChildByTag(TAG_BALL, true);
 		auto it = m_ball.erase(m_ball.begin());
-		CBall *_ball = new CBall(this, g_acc * g_level);
+		CBall *_ball = new CBall(this, g_gameState->m_acc * g_gameState->m_level, m_player->GetPosition());
 		m_ball.push_back(_ball);
 		m_startBallMovement = false;
 		return true;
 	}
+
 	if (((MASK_BALL == a->getCollisionBitmask()) &&
 		(MASK_BLOCK == b->getCollisionBitmask())) ||
 		((MASK_BALL == b->getCollisionBitmask()) &&
@@ -172,6 +163,7 @@ bool CGameLayer::onContactBegin(cocos2d::PhysicsContact &contact)
 		{
 			pTag = a->getNode()->getTag();
 		}
+
 		int i = 0;
 		for (auto it = m_blocks.begin(); it != m_blocks.end(); ++it)
 		{
@@ -198,9 +190,9 @@ bool CGameLayer::onTouchBegan(Touch* pTouches, CCEvent* event) {
 	if (pTouches)
 	{
 		auto point = pTouches->getLocation();
-		if (m_player1->IsContainsPoint(point))
+		if (m_player->IsContainsPoint(point))
 		{
-			m_player1->isTouch = true;
+			m_player->isTouch = true;
 		}
 	}
 	return true;
@@ -212,9 +204,9 @@ void CGameLayer::gotoMenuScene(cocos2d::Ref *sender)
 	Director::getInstance()->replaceScene(TransitionFlipX::create(1, scene));
 }
 
-void CGameLayer::gotoGameOverScene(cocos2d::Ref *sender)
+void CGameLayer::gotoTrancScene(cocos2d::Ref *sender)
 {
-	auto scene = CTransitionalScene::createScene(g_score, g_level, g_life);
+	auto scene = CTransitionalScene::createScene(g_gameState);
 	Director::getInstance()->replaceScene(TransitionFlipX::create(1, scene));
 }
 
@@ -222,9 +214,9 @@ void CGameLayer::onTouchMoved(Touch* pTouches, CCEvent* event) {
 	if (pTouches)
 	{
 		auto point = pTouches->getLocation();
-		if (m_player1->isTouch)
+		if (m_player->isTouch)
 		{
-			m_player1->Move(point);
+			m_player->Move(point);
 			if (!m_startBallMovement)
 			{
 				m_ball[0]->Move(point);
@@ -234,9 +226,9 @@ void CGameLayer::onTouchMoved(Touch* pTouches, CCEvent* event) {
 }
 
 void CGameLayer::onTouchEnded(Touch* pTouches, CCEvent* event) {
-	if (m_player1->isTouch)
+	if (m_player->isTouch)
 	{
-		m_player1->isTouch = false;
+		m_player->isTouch = false;
 	}
 
 	if (!m_startBallMovement)
@@ -249,10 +241,8 @@ void CGameLayer::onTouchEnded(Touch* pTouches, CCEvent* event) {
 void CGameLayer::playerScore()
 {
 	//SimpleAudioEngine::sharedEngine()->playEffect("score.wav");
-	//m_ball->setVector(ccp(0, 0));
-
 	char score_buffer[10];
-	g_score++;
-	sprintf(score_buffer, "%i", g_score);
+	++g_gameState->m_score;
+	sprintf(score_buffer, "%i", g_gameState->m_score);
 	m_playerScoreLabel->setString(score_buffer);
 }

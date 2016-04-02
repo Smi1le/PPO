@@ -18,8 +18,6 @@ CBlock::CBlock(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int tag
 	m_block->setTag(tag);
 	m_block->setColor(cocos2d::Color3B( random(0, 255), random(0, 255), random(0, 255)));
 	layer->addChild(m_block);
-	CCLOG(std::to_string(m_block->getTag()).c_str());
-	CCLOG(std::to_string(tag).c_str());
 	m_tag = tag;
 }
 

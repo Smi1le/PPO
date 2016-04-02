@@ -11,6 +11,7 @@ public:
 	~CRacket() = default;
 	bool isTouch = false;
 	void SetPosition(cocos2d::Point pos);
+	cocos2d::Vec2 GetPosition();
 	bool IsContainsPoint(cocos2d::Point point);
 	void Move(cocos2d::Point pos);
 private:

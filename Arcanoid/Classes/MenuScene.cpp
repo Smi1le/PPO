@@ -1,4 +1,5 @@
 #include "MenuScene.h"
+#include "GameLayer.h"
 #include "cocostudio/CocoStudio.h"
 #include "ui/CocosGUI.h"
 #include "Config.h"
@@ -27,11 +28,7 @@ bool MenuScene::init()
 	
 	CCSize m_screenSize = CCDirector::sharedDirector()->getWinSize();
 
-	auto sprite = GameSprite::create("bg_menu.png");
-	sprite->setPosition(ccp(m_screenSize.width * 0.5, m_screenSize.height* 0.5));
-	this->addChild(sprite);
-
-	auto playItem = MenuItemImage::create("_bmp.png", "mallet.png", CC_CALLBACK_1(MenuScene::gotoGameScene, this));
+	auto playItem = MenuItemImage::create("game.png", "game_bg.png", CC_CALLBACK_1(MenuScene::gotoGameScene, this));
 	playItem->setPosition(Point(visibleSize.width / 2 + origin.x, visibleSize.height / 2 + origin.y));
 
 	auto menu = Menu::create(playItem, NULL);
@@ -45,7 +42,6 @@ bool MenuScene::init()
 
 void MenuScene::gotoGameScene(cocos2d::Ref *sender)
 {
-	auto scene = CGameLayer::createScene(0, ACCELERATION, 0, NUMBER_LIFE);
-	CCLOG("goto Game Scene");
+	auto scene = CGameLayer::createScene(std::make_shared<CGameState>(0, ACCELERATION, 0, NUMBER_LIFE));
 	Director::getInstance()->replaceScene(TransitionFlipX::create(1, scene));
 }

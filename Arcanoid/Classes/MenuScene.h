@@ -1,5 +1,7 @@
 #pragma once
-#include "GameLayer.h"
+#include "GameState.h"
+#include "cocos2d.h"
+
 
 class MenuScene : public cocos2d::Layer
 {

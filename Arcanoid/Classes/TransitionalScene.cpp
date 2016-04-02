@@ -7,22 +7,17 @@
 
 USING_NS_CC;
 
-static int g_score;
+/*static int g_score;
 static int g_level;
-static int g_life;
+static int g_life;*/
+static std::shared_ptr<CGameState> g_gameState;
 
-
-Scene* CTransitionalScene::createScene(int score, int level, int life)
+Scene* CTransitionalScene::createScene(std::shared_ptr<CGameState> gameState)
 {
 	auto scene = Scene::create();
 	auto layer = CTransitionalScene::create();
-	g_score = score;
-	g_level = level;
-	g_life = life;
-	CCLOG("Level11111");
-	CCLOG(std::to_string(g_level).c_str());
+	g_gameState = gameState;
 	scene->addChild(layer);
-	CCLOG("Create Scene");
 	return scene;
 }
 
@@ -38,7 +33,7 @@ bool CTransitionalScene::init()
 	Size visibleSize = Director::getInstance()->getVisibleSize();
 	Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
-	cocos2d::Sprite* sprite = GameSprite::create("bg_gameOver.png");
+	cocos2d::Sprite* sprite = GameSprite::create("bg_tranc_scene.png");
 	sprite->setPosition(ccp(visibleSize.width / 2.0f, visibleSize.height / 2.0f));
 	this->addChild(sprite);
 
@@ -69,8 +64,6 @@ void CTransitionalScene::gotoMenuScene(cocos2d::Ref *sender)
 
 void CTransitionalScene::gotoGameScene(cocos2d::Ref *sender)
 {
-	CCLOG("Level");
-	CCLOG(std::to_string(g_level).c_str());
-	auto scene = CGameLayer::createScene(g_score, ACCELERATION, g_level + 1, g_life);
+	auto scene = CGameLayer::createScene(g_gameState);
 	Director::getInstance()->replaceScene(TransitionFlipX::create(1, scene));
 }

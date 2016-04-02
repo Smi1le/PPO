@@ -26,6 +26,11 @@ void CRacket::SetPosition(Point pos)
 	m_racket->setPosition(pos);
 }
 
+cocos2d::Vec2 CRacket::GetPosition()
+{
+	return m_racket->getPosition();
+}
+
 bool CRacket::IsContainsPoint(Point point)
 {
 	return m_racket->boundingBox().containsPoint(point);

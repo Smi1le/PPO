@@ -1,5 +1,3 @@
-
-
 #include "GameSprite.h"
 
 

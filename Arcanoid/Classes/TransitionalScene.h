@@ -7,7 +7,7 @@ public:
 	CTransitionalScene() = default;
 	~CTransitionalScene() = default;
 	
-	static cocos2d::Scene* createScene(int score, int level, int life);
+	static cocos2d::Scene* createScene(std::shared_ptr<CGameState> gameState);
 
 	CREATE_FUNC(CTransitionalScene);
 private:
