@@ -1,6 +1,9 @@
 #ifndef  _APP_DELEGATE_H_
 #define  _APP_DELEGATE_H_
 
+#pragma warning (disable: 4996)
+
+
 #include "cocos2d.h"
 #include "MenuScene.h"
 

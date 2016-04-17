@@ -2,7 +2,7 @@
 #include "cocos2d.h"
 
 
-static const int MAX_NUMBER_BLOCKS = 63;
+static const int MAX_NUMBER_BLOCKS = 90;
 static const int SIZE_LABEL = 25;
 static const int TAG_PLAYER_SCORE_LABEL = 13;
 static const int TAG_SCORE_LABEL = 14;

@@ -34,7 +34,7 @@ bool CTransitionalScene::init()
 	Vec2 origin = Director::getInstance()->getVisibleOrigin();
 
 	cocos2d::Sprite* sprite = GameSprite::create("bg_tranc_scene.png");
-	sprite->setPosition(ccp(visibleSize.width / 2.0f, visibleSize.height / 2.0f));
+	sprite->setPosition(ccp((visibleSize.width / 2.0f), (visibleSize.height / 2.0f)));
 	this->addChild(sprite);
 
 	auto playItem = MenuItemImage::create("menu.png", "menu_bg.png", CC_CALLBACK_1(CTransitionalScene::gotoMenuScene, this));

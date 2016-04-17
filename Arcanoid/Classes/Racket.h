@@ -7,17 +7,15 @@
 class CRacket : public cocos2d::Sprite
 {
 public:
-	CRacket(cocos2d::Layer * layer);
-	~CRacket() = default;
+	CRacket* init(cocos2d::Layer * layer);
 	bool isTouch = false;
 	void SetPosition(cocos2d::Point pos);
-	cocos2d::Vec2 GetPosition();
-	bool IsContainsPoint(cocos2d::Point point);
+	float GetPosition();
 	void Move(cocos2d::Point pos);
 private:
 	cocos2d::Vec2 m_origin;
 	cocos2d::Size m_visibleSize;
-	GameSprite *m_racket;
+	Sprite *m_racket;
 	float m_width;
 };
 

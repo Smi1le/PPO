@@ -6,7 +6,7 @@ USING_NS_CC;
 
 using namespace cocos2d;
 
-CRacket::CRacket(cocos2d::Layer * layer) {
+CRacket* CRacket::init(cocos2d::Layer * layer) {
 	m_visibleSize = Director::getInstance()->getVisibleSize();
 	m_origin = Director::getInstance()->getVisibleOrigin();
 	m_racket = GameSprite::gameSpriteWithFile("_bmp.png");
@@ -17,23 +17,20 @@ CRacket::CRacket(cocos2d::Layer * layer) {
 	racketBody->setCollisionBitmask(MASK_RACKET);
 	racketBody->setContactTestBitmask(true);
 	m_racket->setPhysicsBody(racketBody);
-	m_racket->setPosition(Vec2(m_visibleSize.height - 50.0f, 25.0f));
+	//m_racket->setPosition(Vec2(m_visibleSize.height - 50.0f, 25.0f));
 	layer->addChild(m_racket);
+	return this;
 }
 
 void CRacket::SetPosition(Point pos)
 {
 	m_racket->setPosition(pos);
+	
 }
 
-cocos2d::Vec2 CRacket::GetPosition()
+float CRacket::GetPosition()
 {
-	return m_racket->getPosition();
-}
-
-bool CRacket::IsContainsPoint(Point point)
-{
-	return m_racket->boundingBox().containsPoint(point);
+	return m_racket->getPositionX();
 }
 
 void CRacket::Move(Point pos)

@@ -4,6 +4,8 @@
 #include "cocostudio/CocoStudio.h"
 #include "ui/CocosGUI.h"
 #include "Config.h"
+#include <string>
+#include <sstream>
 
 USING_NS_CC;
 
@@ -20,7 +22,7 @@ Scene* CGameLayer::createScene(std::shared_ptr<CGameState> gameState)
 	auto layer = CGameLayer::create();
 	layer->SetPhysicsWorld(scene->getPhysicsWorld());
     scene->addChild(layer);
-    return scene;
+	return scene;
 }
 
 bool CGameLayer::init()
@@ -47,13 +49,13 @@ bool CGameLayer::init()
 	sprite->setPosition(ccp(m_screenSize.width * 0.5, m_screenSize.height* 0.5));
 	this->addChild(sprite, -1);
 
-	auto gateBody = PhysicsBody::createBox(Size(m_visibleSize.width, 5.0f));
+	auto gateBody = PhysicsBody::createBox(Size(m_visibleSize.width, 1.0f));
 	gateBody->setDynamic(false);
 	gateBody->setContactTestBitmask(true);
 	gateBody->setContactTestBitmask(BORDER_CONTACT_BITMASK);
 	gateBody->setCollisionBitmask(BORDER_CONTACT_BITMASK);
 	auto gateNode = make_cc<Node>();
-	gateNode->setPosition(Point(m_visibleSize.width / 2.0f, 0.0f));
+	gateNode->setPosition(Point(m_visibleSize.width / 2.0f, -1.0f));
 	gateNode->setPhysicsBody(gateBody);
 	addChild(gateNode);
 	
@@ -61,12 +63,13 @@ bool CGameLayer::init()
 	Point coordinates = { 0.1f, 0.85f };
 	for (int i = 1; i <= MAX_NUMBER_BLOCKS; ++i)
 	{
-		CBlock* spr = new CBlock(this, ccp(coordinates.x, coordinates.y), TAG_START_BLOCK + i);
+		CBlock* spr = new (std::nothrow) CBlock();
+		spr->init(this, ccp(coordinates.x, coordinates.y), TAG_START_BLOCK + i);
 		m_blocks.push_back(spr);
 		coordinates.x += 0.1f;
 		if (i % 9 == 0)
 		{
-			coordinates = { 0.1f, coordinates.y - 0.05f };
+			coordinates = { 0.1f, coordinates.y - 0.03f };
 		}
 	}
 
@@ -77,21 +80,29 @@ bool CGameLayer::init()
 	edgeNode->setPhysicsBody(edgeBody);
 	this->addChild(edgeNode);
 	
-	m_player = new CRacket(this);
-	
-	CBall *_ball = new CBall(this, g_gameState->m_acc * g_gameState->m_level, m_player->GetPosition());
-	m_ball.push_back(_ball);
+	m_player = new (std::nothrow) CRacket();
+	m_player->init(this);
+	m_player->SetPosition(Vec2(m_visibleSize.height - 50.0f, 100.0f));
 
+	CBall *_ball = new (std::nothrow) CBall();
+	_ball->init(this, g_gameState->m_acc * g_gameState->m_level, m_player->GetPosition());
+	//this->addChild(_ball);
+	m_ball.push_back(_ball);
+	
 	m_labelScore = CCLabelTTF::create("You score", "Arial", SIZE_LABEL);
-	m_labelScore->setPosition(ccp(60, m_visibleSize.height - SIZE_LABEL));
+	m_labelScore->setPosition(ccp(60.0f + 70.0f, m_visibleSize.height - SIZE_LABEL));
 	m_labelScore->setColor(COLOR_LABEL);
 	m_labelScore->setTag(TAG_SCORE_LABEL);
 	this->addChild(m_labelScore);
 
-	m_playerScoreLabel = CCLabelTTF::create(std::to_string(g_gameState->m_score).c_str(), "Arial", SIZE_LABEL);
-	m_playerScoreLabel->setPosition(ccp(135, m_visibleSize.height - SIZE_LABEL));
+	char score_buffer[10];
+	sprintf(score_buffer, "%i", g_gameState->m_score);
+	
+	m_playerScoreLabel = CCLabelTTF::create("", "Arial", SIZE_LABEL);
+	m_playerScoreLabel->setPosition(ccp(135.0f + 70.0f, m_visibleSize.height - SIZE_LABEL));
 	m_playerScoreLabel->setColor(COLOR_LABEL);
 	m_playerScoreLabel->setTag(TAG_PLAYER_SCORE_LABEL);
+	m_playerScoreLabel->setString(score_buffer);
 	this->addChild(m_playerScoreLabel);
 
 	auto listener = EventListenerTouchOneByOne::create();
@@ -105,7 +116,6 @@ bool CGameLayer::init()
 	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(contactListener, this);
 	
 	this->setTouchEnabled(true);
-	
 	this->scheduleUpdate();
 	
 	return true;
@@ -140,12 +150,17 @@ bool CGameLayer::onContactBegin(cocos2d::PhysicsContact &contact)
 		((MASK_BALL == b->getCollisionBitmask()) &&
 			(BORDER_CONTACT_BITMASK == a->getCollisionBitmask())))
 	{
-		--g_gameState->m_life;
-		this->removeChildByTag(TAG_BALL, true);
-		auto it = m_ball.erase(m_ball.begin());
-		CBall *_ball = new CBall(this, g_gameState->m_acc * g_gameState->m_level, m_player->GetPosition());
-		m_ball.push_back(_ball);
-		m_startBallMovement = false;
+		if (m_startBallMovement)
+		{
+			--g_gameState->m_life;
+			this->removeChildByTag(TAG_BALL, true);
+			m_ball.erase(m_ball.begin());
+			CBall *_ball = new (std::nothrow) CBall();
+			_ball->init(this, g_gameState->m_acc * g_gameState->m_level, m_player->GetPosition());
+			//this->addChild(_ball);
+			m_ball.push_back(_ball);
+			m_startBallMovement = false;
+		}
 		return true;
 	}
 
@@ -186,14 +201,11 @@ bool CGameLayer::onContactBegin(cocos2d::PhysicsContact &contact)
 	return false;
 }
 
-bool CGameLayer::onTouchBegan(Touch* pTouches, CCEvent* event) {
+bool CGameLayer::onTouchBegan(Touch* pTouches, Event* event) {
 	if (pTouches)
 	{
 		auto point = pTouches->getLocation();
-		if (m_player->IsContainsPoint(point))
-		{
-			m_player->isTouch = true;
-		}
+		m_player->isTouch = true;
 	}
 	return true;
 }
@@ -210,7 +222,7 @@ void CGameLayer::gotoTrancScene(cocos2d::Ref *sender)
 	Director::getInstance()->replaceScene(TransitionFlipX::create(1, scene));
 }
 
-void CGameLayer::onTouchMoved(Touch* pTouches, CCEvent* event) {
+void CGameLayer::onTouchMoved(Touch* pTouches, Event* event) {
 	if (pTouches)
 	{
 		auto point = pTouches->getLocation();
@@ -225,7 +237,7 @@ void CGameLayer::onTouchMoved(Touch* pTouches, CCEvent* event) {
 	}
 }
 
-void CGameLayer::onTouchEnded(Touch* pTouches, CCEvent* event) {
+void CGameLayer::onTouchEnded(Touch* pTouches, Event* event) {
 	if (m_player->isTouch)
 	{
 		m_player->isTouch = false;

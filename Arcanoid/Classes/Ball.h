@@ -7,15 +7,16 @@
 class CBall : public cocos2d::CCSprite
 {
 public:
-	CBall(cocos2d::Layer * layer, float acceleration, Point pos);
+	CBall* init(cocos2d::Layer * layer, float acceleration, float pos);
 	void Start();
 	void Move(cocos2d::Point pos);
 private:
+	//bool initBall(float acc);
 	cocos2d::Vec2 m_origin;
 	cocos2d::Size m_visibleSize;
 	cocos2d::Sprite *m_ball;
-
-	float m_acc;
+	Point m_pos;
+	float m_acc = 1.05f;
 	float m_width;
 };
 

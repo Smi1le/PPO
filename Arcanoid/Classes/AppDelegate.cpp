@@ -3,7 +3,7 @@
 
 USING_NS_CC;
 
-static cocos2d::Size designResolutionSize = cocos2d::Size(480, 320);
+static cocos2d::Size designResolutionSize = cocos2d::Size(360, 240);
 static cocos2d::Size smallResolutionSize = cocos2d::Size(480, 320);
 static cocos2d::Size mediumResolutionSize = cocos2d::Size(1024, 768);
 static cocos2d::Size largeResolutionSize = cocos2d::Size(2048, 1536);
@@ -24,9 +24,16 @@ void AppDelegate::initGLContextAttrs()
     GLView::setGLContextAttrs(glContextAttrs);
 }
 
+// If you want to use packages manager to install more packages, 
+// don't modify or remove this function
+static int register_all_packages()
+{
+	return 0; //flag for packages manager
+}
+
 bool AppDelegate::applicationDidFinishLaunching() {
     // initialize director
-    auto director = Director::getInstance();
+   /* auto director = Director::getInstance();
     auto glview = director->getOpenGLView();
     if(!glview) {
 #if (CC_TARGET_PLATFORM == CC_PLATFORM_WIN32) || (CC_TARGET_PLATFORM == CC_PLATFORM_MAC) || (CC_TARGET_PLATFORM == CC_PLATFORM_LINUX)
@@ -57,7 +64,23 @@ bool AppDelegate::applicationDidFinishLaunching() {
 	else
 	{
 		director->setContentScaleFactor(MIN(smallResolutionSize.height / designResolutionSize.height, smallResolutionSize.width / designResolutionSize.width));
+	}*/
+
+	auto director = Director::getInstance();
+	auto glview = director->getOpenGLView();
+	if (!glview)
+	{
+		glview = GLViewImpl::createWithRect("Arcanoid", Rect(0, 0, 960, 540));
+		glview->setFrameSize(960, 540);
+		director->setOpenGLView(glview);
 	}
+
+	Size screenSize = glview->getFrameSize();
+	Size designSize(960, 540);
+
+	glview->setDesignResolutionSize(designSize.width, designSize.height, ResolutionPolicy::NO_BORDER);
+	director->setDisplayStats(false);
+	director->setAnimationInterval(1.f / 60.f);
 
     FileUtils::getInstance()->addSearchPath("res");
 

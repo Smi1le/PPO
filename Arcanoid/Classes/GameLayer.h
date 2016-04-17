@@ -13,33 +13,35 @@
 class CGameLayer : public cocos2d::Layer
 {
 public:
-	CGameLayer() = default;
+	/*CGameLayer() = default;
 	~CGameLayer() = default;
-
+	*/
 	static cocos2d::Scene* createScene(std::shared_ptr<CGameState> gameState);
+	bool init() override;
     CREATE_FUNC(CGameLayer);
 private:
 	void SetPhysicsWorld(cocos2d::PhysicsWorld *world) { m_sceneWorld = world; };
 	bool onContactBegin(cocos2d::PhysicsContact &contact);
-	bool onTouchBegan(Touch* pTouches, CCEvent* event);
-	void onTouchMoved(Touch* pTouches, CCEvent* event);
-	void onTouchEnded(Touch* pTouches, CCEvent* event);
+	bool onTouchBegan(Touch* pTouches, Event* event);
+	void onTouchMoved(Touch* pTouches, Event* event);
+	void onTouchEnded(Touch* pTouches, Event* event);
 	void update(float dt);
 	void playerScore();
 	void gotoMenuScene(cocos2d::Ref *sender);
 	void gotoTrancScene(cocos2d::Ref *sender);
 	void gotoGameOver(cocos2d::Ref *sender);
-	bool init() override;
+	
 
-	CCLabelTTF * m_labelScore = nullptr;
-	CCLabelTTF * m_playerScoreLabel = nullptr;
-	cocos2d::PhysicsWorld *m_sceneWorld = nullptr;
+	CCLabelTTF * m_labelScore;
+	CCLabelTTF * m_playerScoreLabel;
+	cocos2d::PhysicsWorld *m_sceneWorld;
 	cocos2d::CCSize m_screenSize;
 	cocos2d::CCSize m_visibleSize;
 	cocos2d::Vec2 m_origin;
 	std::vector<CBlock *> m_blocks;
 	std::vector<CBall*> m_ball;
-	CRacket * m_player = nullptr;
+	//CBall *m_ball;
+	CRacket * m_player;
 	bool m_flag = false;
 	bool m_startBallMovement = false;
 };

@@ -1,12 +1,12 @@
-#pragma once
+#ifndef __CBLOCK_H__
+#define __CBLOCK_H__
 #include "GameSprite.h"
 
 
 class CBlock
 {
 public:
-	CBlock(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int tag);
-	~CBlock() = default;
+	CBlock* init(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int tag);
 	int getTag();
 	void del(cocos2d::Layer * layer);
 private:
@@ -15,3 +15,4 @@ private:
 	GameSprite *m_block;
 	int m_tag;
 };
+#endif // __CBLOCK_H__
