@@ -1,5 +1,6 @@
 #include "GameSprite.h"
 
+using namespace cocos2d;
 
 GameSprite::GameSprite(void) 
 {

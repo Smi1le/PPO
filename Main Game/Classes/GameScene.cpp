@@ -1,21 +1,24 @@
 #include "GameScene.h"
+#include "Bonus.h"
 #include "cocostudio/CocoStudio.h"
 #include "ui/CocosGUI.h"
-#include "Brick.h"
-//#include "Player.h"
+#include <algorithm>
+#include "GameOverScene.h"
+
 
 USING_NS_CC;
 
 using namespace cocostudio::timeline;
 using namespace cocos2d;
 
-Scene* CGameScene::createScene()
+SGameState g_gameState;
+
+Scene* CGameScene::createScene(int livesPlayer)
 {
-	// 'scene' is an autorelease object
 	auto scene = Scene::createWithPhysics();
-	scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
 	scene->getPhysicsWorld()->setGravity(Vec2(0, 0));
-	//g_gameState = gameState;
+	g_gameState.remainingNumberTanks = 20;
+	g_gameState.numberLivesPlayer = livesPlayer;
 	auto layer = CGameScene::create();
 	layer->SetPhysicsWorld(scene->getPhysicsWorld());
 	scene->addChild(layer);
@@ -31,31 +34,35 @@ bool CGameScene::init()
 		return false;
 	}
 
-	
-
 	m_tileMap = new CCTMXTiledMap();
 	m_tileMap->initWithTMXFile("level.tmx");
 	m_background = m_tileMap->layerNamed("Objects");
 	CCTMXObjectGroup *objectGroup = m_tileMap->objectGroupNamed("Objects");
+	CCTMXObjectGroup *bonusesGroup = m_tileMap->objectGroupNamed("Bonuses");
 	CCTMXObjectGroup *noDestroySolids = m_tileMap->objectGroupNamed("NoDestroyObjects");
+	CCTMXObjectGroup *enemyGroup = m_tileMap->objectGroupNamed("PlaceRespawnEnemy");
 	m_tileMap->setPosition(Vec2(64, 0));
+	this->addChild(m_tileMap);
 
 	int i = 100;
 	for (Value solid1 : objectGroup->getObjects())
 	{
 		ValueMap props = solid1.asValueMap();
-		CBrick *_block = new (std::nothrow) CBrick();
-		if (!_block->init(this, Vec2(props.at("x").asFloat() + 77.f, props.at("y").asFloat() + 11.f), i))
+		CBrick *block = new CBrick();
+		if (!block->init(this, Vec2(props.at("x").asFloat() + 77.f, props.at("y").asFloat() + 11.f), i))
 		{
 			return false;
 		}
-		m_blocksSprite.push_back(_block);
+		m_blocksSprite.push_back(block);
 		++i;
 	}
 
-	
+	for (Value bonus : bonusesGroup->getObjects())
+	{
+		ValueMap props = bonus.asValueMap();
+		g_gameState.bonusesPositions.push_back(props);
+	}
 
-	CCLOG("**********************");
 	for (Value solid : noDestroySolids->getObjects())
 	{
 		ValueMap props = solid.asValueMap();
@@ -63,24 +70,52 @@ bool CGameScene::init()
 		gateBody->setDynamic(false);
 		gateBody->setContactTestBitmask(true);
 		gateBody->setCollisionBitmask(BORDER_CONTACT_BITMASK);
-		//gateBody->setContactTestBitmask(true);
-		CCLOG(std::to_string(props.at("x").asFloat() + 77.f).c_str());
-		CCLOG(std::to_string(props.at("y").asFloat() + 11.f).c_str());
-		auto gateNode = make_cc<Node>();
+		auto gateNode = GameSprite::gameSpriteWithFile("11.png");;
 		gateNode->setPosition(Point(props.at("x").asFloat() + (props.at("width").asFloat() / 2.f) + 64.f,
 			(props.at("y").asFloat() + (props.at("height").asFloat() / 2.f))));
 		gateNode->setPhysicsBody(gateBody);
 		this->addChild(gateNode);
 	}
-	CCLOG("++++++++++++++++++++++++++++++++++");
-	CCTMXObjectGroup *object = m_tileMap->objectGroupNamed("Player");
-	m_player = new (std::nothrow) CPlayer;
-	ValueMap props = object->getObject("player");
-	CCLOG(std::to_string(props.at("x").asFloat()).c_str());
-	CCLOG(std::to_string(props.at("y").asFloat()).c_str());
-	m_player->init(this, Vec2(props.at("x").asFloat() + 77.f, props.at("y").asFloat() + 11.f));
-	this->addChild(m_tileMap);
+	
+	for (Value enemy : enemyGroup->getObjects())
+	{
+		ValueMap props = enemy.asValueMap();
+		g_gameState.respPositions.push_back(props);
+	}
 
+	CCTMXObjectGroup *object = m_tileMap->objectGroupNamed("Player");
+	m_player = new CPlayer();
+	ValueMap props = object->getObject("player");
+	g_gameState.posInitPlayer = Vec2(props.at("x").asFloat() + 77.f, props.at("y").asFloat() + 11.f);
+	m_player->init(g_gameState.posInitPlayer, this);
+
+	CCTMXObjectGroup *objectEagle = m_tileMap->objectGroupNamed("Eagle");
+
+	ValueMap eagleMap = objectEagle->getObject("eagle");
+	auto eagleSprite = GameSprite::gameSpriteWithFile("Game//eagle.png");
+	auto bodyEagle = PhysicsBody::createBox(eagleSprite->getContentSize());
+	bodyEagle->setGravityEnable(false);
+	bodyEagle->setDynamic(false);
+	bodyEagle->setRotationEnable(false);
+	bodyEagle->setCollisionBitmask(MASK_EAGLE);
+	bodyEagle->setContactTestBitmask(true);
+	eagleSprite->setPhysicsBody(bodyEagle);
+	eagleSprite->setPosition(Vec2(eagleMap.at("x").asFloat() + 90.f, eagleMap.at("y").asFloat() + 20.f));
+	addChild(eagleSprite);
+
+	char score_buffer[10];
+	sprintf(score_buffer, "%i", g_gameState.numberLivesPlayer);
+	
+	ValueMap healthMap = objectEagle->getObject("health");
+	m_labelHealthPlayer = CCLabelTTF::create("", "Arial", healthMap.at("height").asFloat());
+	m_labelHealthPlayer->setPosition(ccp(healthMap.at("x").asFloat() + 77.f, healthMap.at("y").asFloat()));
+	m_labelHealthPlayer->setColor({255, 255, 0});
+	m_labelHealthPlayer->setString(score_buffer);
+	this->addChild(m_labelHealthPlayer);
+
+	
+
+	m_animation.initPlayerAnimation();
 
 	CButton *butUp = new CButton(); // 100 100
 	butUp->init(this, Vec2(50.f, 275.f), 1000, TypeButton::UP, "Up.png", "Up-bg.png");
@@ -99,7 +134,7 @@ bool CGameScene::init()
 	m_buttons.push_back(butRight);
 	
 	auto fire = MenuItemImage::create("psd_2_.png", "psd_back.png", CC_CALLBACK_1(CGameScene::ShootPlayer, this));
-	fire->setPosition(Point(400.f, 500.f));
+	fire->setPosition(Point(860.f, 70.f));
 
 	auto buttonFire = Menu::create(fire, NULL);
 	buttonFire->setPosition(Point::ZERO);
@@ -109,7 +144,6 @@ bool CGameScene::init()
 	
 	auto listener = EventListenerTouchOneByOne::create();
 	listener->onTouchBegan = CC_CALLBACK_2(CGameScene::onTouchBegan, this);
-	listener->onTouchMoved = CC_CALLBACK_2(CGameScene::onTouchMoved, this);
 	listener->onTouchEnded = CC_CALLBACK_2(CGameScene::onTouchEnded, this);
 	_eventDispatcher->addEventListenerWithSceneGraphPriority(listener, this);
 
@@ -118,7 +152,8 @@ bool CGameScene::init()
 	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(contactListener, this);
 
 	this->setTouchEnabled(true);
-
+	this->schedule(schedule_selector(CGameScene::ChangeDirEnemy), 5.0);
+	this->schedule(schedule_selector(CGameScene::AddEnemy), 7.0);
 	this->scheduleUpdate();
 	return true;
 }
@@ -138,11 +173,6 @@ bool CGameScene::onTouchBegan(Touch* touches, Event* event) {
 		}
 	}
 	return false;
-}
-
-void CGameScene::onTouchMoved(Touch* touches, Event* event) 
-{
-	
 }
 
 void CGameScene::onTouchEnded(Touch* touches, Event* event)
@@ -190,13 +220,41 @@ void CGameScene::update(float dt)
 	{
 		StepPlayer();
 	}
-	
+	for (size_t i = 0; i != m_enemyList.size(); ++i)
+	{
+		int shoot = cocos2d::random(0, 50);
+		if (shoot == 20 && !m_enemyList.at(i)->IsShot())
+		{
+			m_enemyList.at(i)->Shoot(this);
+		}
+	}
+	if (g_gameState.numberLivesPlayer == -1)
+	{
+		GoToGameOverScene(this);
+	}
+	if (g_gameState.remainingNumberTanks == 0 && m_enemyList.empty())
+	{
+
+	}
+	if (m_needTimer)
+	{
+		m_timer += dt;
+		if (m_timer >= 1.5f)
+		{
+			m_needTimer = false;
+			m_player = new CPlayer();
+			m_player->init(g_gameState.posInitPlayer, this);
+			m_player->ReleasedBullet();
+		}
+	}
+
 }
 
 bool CGameScene::onContactBegin(cocos2d::PhysicsContact &contact)
 {
 	PhysicsBody *a = contact.getShapeA()->getBody();
 	PhysicsBody *b = contact.getShapeB()->getBody();
+	//игрок и бордюр
 	if (((MASK_PLAYER == a->getCollisionBitmask()) &&
 		(BORDER_CONTACT_BITMASK == b->getCollisionBitmask())) ||
 		((MASK_PLAYER == b->getCollisionBitmask()) &&
@@ -205,7 +263,8 @@ bool CGameScene::onContactBegin(cocos2d::PhysicsContact &contact)
 		m_player->isMove = false;
 		return true;
 	}
-	else if (((MASK_PLAYER == a->getCollisionBitmask()) &&
+	//игрок и кирпич
+	if (((MASK_PLAYER == a->getCollisionBitmask()) &&
 		(MASK_BRICK == b->getCollisionBitmask())) ||
 		((MASK_PLAYER == b->getCollisionBitmask()) &&
 		(MASK_BRICK == a->getCollisionBitmask())))
@@ -213,28 +272,267 @@ bool CGameScene::onContactBegin(cocos2d::PhysicsContact &contact)
 		m_player->isMove = false;
 		return true;
 	}
-	else if (((BORDER_CONTACT_BITMASK == a->getCollisionBitmask()) &&
+	//враг и кирпич
+	if (((MASK_ENEMY == a->getCollisionBitmask()) &&
+		(MASK_BRICK == b->getCollisionBitmask())) ||
+		((MASK_ENEMY == b->getCollisionBitmask()) &&
+		(MASK_BRICK == a->getCollisionBitmask())))
+	{
+		if (a->getNode()->getTag() != NULL &&  b->getNode()->getTag() != NULL)
+		{
+			int tag = MASK_ENEMY == a->getCollisionBitmask() ? a->getNode()->getTag() : b->getNode()->getTag();
+			for (auto en : m_enemyList)
+			{
+				if (en->GetTag() == tag)
+				{
+					en->ChangeDirection();
+					break;
+				}
+			}
+
+			
+		}
+		return true;
+	}
+	//враг и враг
+	if ((MASK_ENEMY == a->getCollisionBitmask()) &&
+		(MASK_ENEMY == b->getCollisionBitmask()))
+	{
+		for (auto en : m_enemyList)
+		{
+			if (en->GetTag() == a->getNode()->getTag())
+			{
+				en->ChangeDirection();
+			}
+			if (en->GetTag() == b->getNode()->getTag())
+			{
+				en->ChangeDirection();
+			}
+		}
+		return true;
+	}
+
+	//Пуля и пуля
+	if ((MASK_BULLET == a->getCollisionBitmask()) &&
+		(MASK_BULLET == b->getCollisionBitmask()))
+	{
+		if (a->getNode() != NULL && b->getNode() != NULL)
+		{
+			int PlayerBullet = a->getNode()->getTag();
+			int EnemyBullet = b->getNode()->getTag();
+			if (b->getNode()->getTag() == TAG_BULLET_PLAYER)
+			{
+				PlayerBullet = b->getNode()->getTag();
+				EnemyBullet = a->getNode()->getTag();
+			}
+			for (auto enemy : m_enemyList)
+			{
+				if (EnemyBullet == enemy->GetBulletTag())
+				{
+					enemy->ChangeResolution();
+				}
+			}
+			m_player->ChangeResolution();
+			this->addChild(m_animation.Explosion(a->getNode()->getPosition()));
+			this->addChild(m_animation.Explosion(b->getNode()->getPosition()));
+			removeChildByTag(EnemyBullet);
+			removeChildByTag(PlayerBullet);
+		}
+		return true;
+	}
+	//Враг и бордюр
+	if (((MASK_ENEMY == a->getCollisionBitmask()) &&
+		(BORDER_CONTACT_BITMASK == b->getCollisionBitmask())) ||
+		((MASK_ENEMY == b->getCollisionBitmask()) &&
+		(BORDER_CONTACT_BITMASK == a->getCollisionBitmask())))
+	{
+		int tag = MASK_ENEMY == a->getCollisionBitmask() ? a->getNode()->getTag() : b->getNode()->getTag();
+		for (auto en : m_enemyList)
+		{
+			if (en->GetTag() == tag)
+			{
+				en->ChangeDirection();
+				break;
+			}
+		}
+		return true;
+	}
+	// Пуля игрока и враг
+	if (((MASK_ENEMY == a->getCollisionBitmask()) &&
+		(MASK_BULLET == b->getCollisionBitmask())) ||
+		((MASK_ENEMY == b->getCollisionBitmask()) &&
+		(MASK_BULLET == a->getCollisionBitmask())))
+	{
+		int tagA = a->getNode()->getTag();
+		int tagB = b->getNode()->getTag();
+		if (tagA == TAG_BULLET_PLAYER || tagB == TAG_BULLET_PLAYER)
+		{
+			for (size_t i = 0; i != m_enemyList.size(); ++i)
+			{
+				if (tagB == m_enemyList.at(i)->GetTag() || 
+					tagA == m_enemyList.at(i)->GetTag())
+				{
+					m_enemyList.erase(m_enemyList.begin() + i);
+					break;
+				}
+			}
+			--g_gameState.numberEnemys;
+			m_player->ChangeResolution();
+			this->addChild(m_animation.Explosion(a->getNode()->getPosition()));
+			this->addChild(m_animation.Explosion(b->getNode()->getPosition()));
+			removeChildByTag(tagB);
+			removeChildByTag(tagA);
+			return true;
+		}
+		return false;
+	}
+	//Игрок и пуля
+	if (((MASK_PLAYER == a->getCollisionBitmask()) &&
+		(MASK_BULLET == b->getCollisionBitmask())) ||	
+		((MASK_PLAYER == b->getCollisionBitmask()) &&
+		(MASK_BULLET == a->getCollisionBitmask())))
+	{
+		int tagA = a->getNode()->getTag();
+		int tagB = b->getNode()->getTag();
+		auto posBul = a->getNode()->getPosition();
+		for (size_t i = 0; i != m_enemyList.size(); ++i)
+		{
+			if (tagA == m_enemyList.at(i)->GetBulletTag() ||
+				tagB == m_enemyList.at(i)->GetBulletTag())
+			{	
+				m_needTimer = true;
+				this->addChild(m_animation.Explosion(m_player->GetPosition()));
+				this->addChild(m_animation.Explosion(posBul));
+				removeChildByTag(m_player->GetTag());
+				removeChildByTag(tagA);
+				MinusPlayerLives();
+				m_enemyList.at(i)->ChangeResolution();
+				break;
+			}	
+		}
+		
+		return true;
+	}
+	//Бордюр и пуля
+	if (((BORDER_CONTACT_BITMASK == a->getCollisionBitmask()) &&
 		(MASK_BULLET == b->getCollisionBitmask())) ||
 		((BORDER_CONTACT_BITMASK == b->getCollisionBitmask()) &&
 		(MASK_BULLET == a->getCollisionBitmask())))
 	{
-		removeChildByTag(TAG_BULLET_PLAYER);
+		int tagBullet = a->getNode()->getTag();
+		auto pos = a->getPosition();
+		if (MASK_BULLET == b->getCollisionBitmask())
+		{
+			pos = b->getPosition();
+			tagBullet = b->getNode()->getTag();
+		}
+		if (tagBullet == TAG_BULLET_PLAYER)
+		{
+			m_player->ChangeResolution();
+		}
+		else
+		{
+			for (size_t i = 0; i != m_enemyList.size(); ++i)
+			{
+				if (tagBullet == m_enemyList.at(i)->GetBulletTag())
+				{
+					m_enemyList.at(i)->ChangeResolution();
+					break;
+				}
+			}
+		}
+		addChild(m_animation.Explosion(pos));
+		removeChildByTag(tagBullet);
 		return true;
 	}
-	else if (((MASK_BRICK == a->getCollisionBitmask()) &&
+	//Кирпич и пуля
+	if (((MASK_BRICK == a->getCollisionBitmask()) &&
 		(MASK_BULLET == b->getCollisionBitmask())) ||
 		((MASK_BRICK == b->getCollisionBitmask()) &&
 		(MASK_BULLET == a->getCollisionBitmask())))
 	{
-		CCLOG(std::to_string(a->getTag()).c_str());
-		CCLOG(std::to_string(b->getTag()).c_str());
+		int tagA = INT_MAX;
+		int tagB = INT_MAX;
 		if (a->getNode() != NULL)
 		{
-			removeChildByTag(a->getNode()->getTag());
+			tagA = a->getNode()->getTag();
+			this->addChild(m_animation.Explosion(a->getPosition()));
+			removeChildByTag(tagA);
 		}
 		if (b->getNode() != NULL)
 		{
-			removeChildByTag(b->getNode()->getTag());
+			tagB = b->getNode()->getTag();
+			this->addChild(m_animation.Explosion(b->getPosition()));
+			removeChildByTag(tagB);
+		}
+		if (tagA == TAG_BULLET_PLAYER || tagB == TAG_BULLET_PLAYER)
+		{
+			m_player->ChangeResolution();
+		}
+		else
+		{
+			for (size_t i = 0; i != m_enemyList.size(); ++i)
+			{
+				if (tagA == m_enemyList.at(i)->GetBulletTag() || 
+					tagB == m_enemyList.at(i)->GetBulletTag())
+				{
+					m_enemyList.at(i)->ChangeResolution();
+					break;
+				}
+			}
+		}
+		
+		
+		return true;
+	}
+	//Eagle и пуля
+	if (((MASK_EAGLE == a->getCollisionBitmask()) &&
+		(MASK_BULLET == b->getCollisionBitmask())) ||
+		((MASK_EAGLE == b->getCollisionBitmask()) &&
+		(MASK_BULLET == a->getCollisionBitmask())))
+	{
+		int tagA = INT_MAX;
+		int tagB = INT_MAX;
+		if (a->getNode() != NULL)
+		{
+			tagA = a->getNode()->getTag();
+			this->addChild(m_animation.Explosion(a->getPosition()));
+			removeChildByTag(tagA);
+		}
+		if (b->getNode() != NULL)
+		{
+			tagB = b->getNode()->getTag();
+			this->addChild(m_animation.Explosion(b->getPosition()));
+			removeChildByTag(tagB);
+		}
+
+		GoToGameOverScene(this);
+		return true;
+	}
+	if (((MASK_PLAYER == a->getCollisionBitmask()) &&
+		(MASK_BONUS == b->getCollisionBitmask())) ||
+		((MASK_PLAYER == b->getCollisionBitmask()) &&
+		(MASK_BONUS == a->getCollisionBitmask())))
+	{
+		int tagA = INT_MAX;
+		auto bonusBody = MASK_BONUS == b->getCollisionBitmask() ? b : a;
+		if (TAG_BONUS_ADD_LIVES == bonusBody->getNode()->getTag())
+		{
+			char score_buffer[10];
+			sprintf(score_buffer, "%i", ++g_gameState.numberLivesPlayer);
+			m_labelHealthPlayer->setString(score_buffer);
+			removeChildByTag(TAG_BONUS_ADD_LIVES);
+		}
+		else if (TAG_BONUS_EXPLOSION_ENEMYS == bonusBody->getNode()->getTag())
+		{
+			for (auto enemy : m_enemyList)
+			{
+				--g_gameState.numberEnemys;
+				this->addChild(m_animation.Explosion(enemy->GetPosition()));
+				removeChildByTag(enemy->GetTag());
+			}
+			removeChildByTag(TAG_BONUS_EXPLOSION_ENEMYS);
+			m_enemyList.clear();
 		}
 		return true;
 	}
@@ -244,5 +542,76 @@ bool CGameScene::onContactBegin(cocos2d::PhysicsContact &contact)
 
 void CGameScene::ShootPlayer(cocos2d::Ref *ref)
 {
-	m_player->Shoot(this);
+	auto node = this->getChildByTag(TAG_BULLET_PLAYER);
+	if (node == NULL)
+	{
+		m_player->ReleasedBullet();
+	}
+	if (!m_player->IsShot())
+	{
+		m_player->Shoot(this);
+	}
 }
+
+void CGameScene::ChangeDirEnemy(float dt)
+{
+	int i = 0;
+	for (auto enemy : m_enemyList)
+	{
+		enemy->ChangeDirection();
+	}
+}
+
+void CGameScene::AddEnemy(float dt)
+{
+	if (g_gameState.numberEnemys < 5 && g_gameState.remainingNumberTanks != 0)
+	{
+		auto props = g_gameState.respPositions.at(g_gameState.numberRespPos++);
+		auto enemyResp = new CEnemy();
+		enemyResp->init(cocos2d::Vec2(props.at("x").asFloat() + 77.f,
+			props.at("y").asFloat() + props.at("height").asFloat() / 2.f), STATE::DOWN,
+			--g_gameState.remainingNumberTanks, this); // 100 100
+		m_enemyList.push_back(enemyResp);
+		++g_gameState.numberEnemys;
+		if (g_gameState.numberRespPos == g_gameState.respPositions.size())
+		{
+			g_gameState.numberRespPos = 0;
+		}
+		if ((20 - g_gameState.remainingNumberTanks) % 6 == 0)
+		{
+			AddBonus();
+		}
+	}
+}
+
+void CGameScene::GoToGameOverScene(cocos2d::Ref *sender)
+{
+	auto scene = CGameOverScene::createScene();
+	Director::getInstance()->replaceScene(TransitionFlipX::create(1, scene));
+}
+
+void CGameScene::MinusPlayerLives()
+{
+	char score_buffer[10];
+	sprintf(score_buffer, "%i", --g_gameState.numberLivesPlayer);
+	m_labelHealthPlayer->setString(score_buffer);
+}
+
+void CGameScene::AddBonus()
+{
+	ValueMap bonusMap = g_gameState.bonusesPositions.at(g_gameState.bonusNumber);
+	if (g_gameState.bonusNumber == 0)
+	{
+		addChild(CBonus::create(Vec2(bonusMap.at("x").asFloat() + 90.f, bonusMap.at("y").asFloat() + 20.f),
+			this, TAG_BONUS_EXPLOSION_ENEMYS));
+		g_gameState.bonusNumber++;
+	}
+	else
+	{
+		addChild(CBonus::create(Vec2(bonusMap.at("x").asFloat() + 90.f, bonusMap.at("y").asFloat() + 20.f),
+			this, TAG_BONUS_ADD_LIVES));
+		g_gameState.bonusNumber--;
+
+	}
+}
+

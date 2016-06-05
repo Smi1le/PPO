@@ -22,6 +22,7 @@ bool CButton::init(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int
 	
 
 	auto buttonBody = PhysicsBody::createCircle(m_sprite->getContentSize().width / 2);
+	buttonBody->setDynamic(false);
 	m_sprite->setPhysicsBody(buttonBody);
 	m_sprite->setPosition(coordinates);
 	layer->addChild(m_sprite);
@@ -40,14 +41,12 @@ void CButton::Change(cocos2d::Layer * layer)
 	layer->removeChildByTag(m_tag);
 	if (numberSprite == 1)
 	{
-		CCLOG("numberSprite == 1");
 		m_sprite = m_secondSprite;
 		m_sprite->setTag(m_tag);
 		++numberSprite;
 	}
 	else
 	{
-		CCLOG("numberSprite ==2 ");
 		m_sprite = m_firstSprite;
 		m_sprite->setTag(m_tag);
 		--numberSprite;

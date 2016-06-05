@@ -7,15 +7,16 @@
 class CBullet : public cocos2d::Layer
 {
 public:
-	static CBullet* create(cocos2d::Vec2 const &pos, STATE const &state, cocos2d::Layer *layer);
+	static CBullet* create(cocos2d::Vec2 const &pos, STATE const &state, cocos2d::Layer *layer, int tag);
 private:
-	CBullet(cocos2d::Vec2 const &pos, STATE const &state, cocos2d::Layer *layer);
+	CBullet(cocos2d::Vec2 const &pos, STATE const &state, cocos2d::Layer *layer, int tag);
 	GameSprite *m_bulletSprite;
 	cocos2d::Vec2 m_origin;
 	cocos2d::Vec2 m_position;
 	cocos2d::Vec2 m_visibleSize;
 	cocos2d::CCSize m_screenSize;
 	cocos2d::Layer *m_layer;
+	int m_tag;
 	STATE m_state;
 	bool init();
 

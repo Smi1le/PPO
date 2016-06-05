@@ -4,6 +4,8 @@
 
 USING_NS_CC;
 
+using namespace cocos2d;
+
 AppDelegate::AppDelegate() {
 
 }
@@ -28,22 +30,22 @@ bool AppDelegate::applicationDidFinishLaunching() {
     auto director = Director::getInstance();
     auto glview = director->getOpenGLView();
     if(!glview) {
-        glview = GLViewImpl::createWithRect("MainGame", Rect(0, 0, 960, 640));
+        glview = GLViewImpl::createWithRect("MainGame", Rect(0, 0, 960, 540));
         director->setOpenGLView(glview);
     }
 
-    director->getOpenGLView()->setDesignResolutionSize(960, 640, ResolutionPolicy::SHOW_ALL);
+    director->getOpenGLView()->setDesignResolutionSize(960, 540, ResolutionPolicy::SHOW_ALL);
 
     // turn on display FPS
     director->setDisplayStats(true);
 
     // set FPS. the default value is 1.0/60 if you don't call this
-    director->setAnimationInterval(1.0 / 60);
+    director->setAnimationInterval(1.0f / 60);
 
     FileUtils::getInstance()->addSearchPath("res");
 
     // create a scene. it's an autorelease object
-    auto scene = CGameScene::createScene();
+    auto scene = CGameScene::createScene(2);
 
     // run
     director->runWithScene(scene);

@@ -18,7 +18,7 @@ public:
 	int getTag() const;
 	TypeButton GetTypeButton() const;
 	bool IsTouch = false;
-	bool IsContainsPoint(Point const &point);
+	bool IsContainsPoint(cocos2d::Point const &point);
 	void Change(cocos2d::Layer * layer);
 private:
 	GameSprite *m_sprite;
