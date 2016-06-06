@@ -5,10 +5,7 @@ using namespace cocos2d;
 
 bool CBrick::init(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int tag)
 {
-	cocos2d::CCSize m_pScreenSize = CCDirector::sharedDirector()->getWinSize();
-	m_visibleSize = Director::getInstance()->getVisibleSize();
-	m_origin = Director::getInstance()->getVisibleOrigin();
-	m_block = GameSprite::gameSpriteWithFile("Game//brick.png");
+	m_block = GameSprite::gameSpriteWithFile("Game/brick.png");
 	auto blockBody = PhysicsBody::createBox(m_block->getContentSize());
 	blockBody->setGravityEnable(false);
 	blockBody->setDynamic(false);
@@ -25,9 +22,4 @@ bool CBrick::init(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int 
 int CBrick::getTag()
 {
 	return m_tag;
-}
-
-void CBrick::del(cocos2d::Layer * layer)
-{
-	layer->removeChildByTag(m_tag, true);
 }

@@ -4,6 +4,7 @@
 #include "ui/CocosGUI.h"
 #include <algorithm>
 #include "GameOverScene.h"
+#include "GameWinScene.h"
 
 
 USING_NS_CC;
@@ -16,6 +17,7 @@ SGameState g_gameState;
 Scene* CGameScene::createScene(int livesPlayer)
 {
 	auto scene = Scene::createWithPhysics();
+	//scene->getPhysicsWorld()->setDebugDrawMask(PhysicsWorld::DEBUGDRAW_ALL);
 	scene->getPhysicsWorld()->setGravity(Vec2(0, 0));
 	g_gameState.remainingNumberTanks = 20;
 	g_gameState.numberLivesPlayer = livesPlayer;
@@ -34,112 +36,17 @@ bool CGameScene::init()
 		return false;
 	}
 
-	m_tileMap = new CCTMXTiledMap();
-	m_tileMap->initWithTMXFile("level.tmx");
-	m_background = m_tileMap->layerNamed("Objects");
-	CCTMXObjectGroup *objectGroup = m_tileMap->objectGroupNamed("Objects");
-	CCTMXObjectGroup *bonusesGroup = m_tileMap->objectGroupNamed("Bonuses");
-	CCTMXObjectGroup *noDestroySolids = m_tileMap->objectGroupNamed("NoDestroyObjects");
-	CCTMXObjectGroup *enemyGroup = m_tileMap->objectGroupNamed("PlaceRespawnEnemy");
-	m_tileMap->setPosition(Vec2(64, 0));
-	this->addChild(m_tileMap);
-
-	int i = 100;
-	for (Value solid1 : objectGroup->getObjects())
+	auto tileMap = TMXTiledMap::create("Game/level.tmx");
+	tileMap->setPosition(Vec2(64, 0));
+	this->addChild(tileMap);
+	if (!initGameObjects(tileMap))
 	{
-		ValueMap props = solid1.asValueMap();
-		CBrick *block = new CBrick();
-		if (!block->init(this, Vec2(props.at("x").asFloat() + 77.f, props.at("y").asFloat() + 11.f), i))
-		{
-			return false;
-		}
-		m_blocksSprite.push_back(block);
-		++i;
-	}
-
-	for (Value bonus : bonusesGroup->getObjects())
-	{
-		ValueMap props = bonus.asValueMap();
-		g_gameState.bonusesPositions.push_back(props);
-	}
-
-	for (Value solid : noDestroySolids->getObjects())
-	{
-		ValueMap props = solid.asValueMap();
-		auto gateBody = PhysicsBody::createBox(Size(props.at("width").asFloat(), props.at("height").asFloat()));
-		gateBody->setDynamic(false);
-		gateBody->setContactTestBitmask(true);
-		gateBody->setCollisionBitmask(BORDER_CONTACT_BITMASK);
-		auto gateNode = GameSprite::gameSpriteWithFile("11.png");;
-		gateNode->setPosition(Point(props.at("x").asFloat() + (props.at("width").asFloat() / 2.f) + 64.f,
-			(props.at("y").asFloat() + (props.at("height").asFloat() / 2.f))));
-		gateNode->setPhysicsBody(gateBody);
-		this->addChild(gateNode);
+		return false;
 	}
 	
-	for (Value enemy : enemyGroup->getObjects())
-	{
-		ValueMap props = enemy.asValueMap();
-		g_gameState.respPositions.push_back(props);
-	}
-
-	CCTMXObjectGroup *object = m_tileMap->objectGroupNamed("Player");
-	m_player = new CPlayer();
-	ValueMap props = object->getObject("player");
-	g_gameState.posInitPlayer = Vec2(props.at("x").asFloat() + 77.f, props.at("y").asFloat() + 11.f);
-	m_player->init(g_gameState.posInitPlayer, this);
-
-	CCTMXObjectGroup *objectEagle = m_tileMap->objectGroupNamed("Eagle");
-
-	ValueMap eagleMap = objectEagle->getObject("eagle");
-	auto eagleSprite = GameSprite::gameSpriteWithFile("Game//eagle.png");
-	auto bodyEagle = PhysicsBody::createBox(eagleSprite->getContentSize());
-	bodyEagle->setGravityEnable(false);
-	bodyEagle->setDynamic(false);
-	bodyEagle->setRotationEnable(false);
-	bodyEagle->setCollisionBitmask(MASK_EAGLE);
-	bodyEagle->setContactTestBitmask(true);
-	eagleSprite->setPhysicsBody(bodyEagle);
-	eagleSprite->setPosition(Vec2(eagleMap.at("x").asFloat() + 90.f, eagleMap.at("y").asFloat() + 20.f));
-	addChild(eagleSprite);
-
-	char score_buffer[10];
-	sprintf(score_buffer, "%i", g_gameState.numberLivesPlayer);
-	
-	ValueMap healthMap = objectEagle->getObject("health");
-	m_labelHealthPlayer = CCLabelTTF::create("", "Arial", healthMap.at("height").asFloat());
-	m_labelHealthPlayer->setPosition(ccp(healthMap.at("x").asFloat() + 77.f, healthMap.at("y").asFloat()));
-	m_labelHealthPlayer->setColor({255, 255, 0});
-	m_labelHealthPlayer->setString(score_buffer);
-	this->addChild(m_labelHealthPlayer);
-
-	
-
 	m_animation.initPlayerAnimation();
-
-	CButton *butUp = new CButton(); // 100 100
-	butUp->init(this, Vec2(50.f, 275.f), 1000, TypeButton::UP, "Up.png", "Up-bg.png");
-	m_buttons.push_back(butUp);
-
-	CButton *butLeft = new CButton();// 50 50
-	butLeft->init(this, Vec2(50.f, 125.f), 1001, TypeButton::LEFT, "Left.png", "Left-bg.png");
-	m_buttons.push_back(butLeft);
-
-	CButton *butDown = new CButton(); // 100 50
-	butDown->init(this, Vec2(50.f, 200.f), 1002, TypeButton::DOWN, "Down.png", "Down-bg.png");
-	m_buttons.push_back(butDown);
-
-	CButton *butRight = new CButton(); // 150 50
-	butRight->init(this, Vec2(50.f, 50.f), 1003, TypeButton::RIGHT, "Right.png", "Right-bg.png");
-	m_buttons.push_back(butRight);
+	CreateButton();
 	
-	auto fire = MenuItemImage::create("psd_2_.png", "psd_back.png", CC_CALLBACK_1(CGameScene::ShootPlayer, this));
-	fire->setPosition(Point(860.f, 70.f));
-
-	auto buttonFire = Menu::create(fire, NULL);
-	buttonFire->setPosition(Point::ZERO);
-
-	this->addChild(buttonFire);
 
 	
 	auto listener = EventListenerTouchOneByOne::create();
@@ -158,19 +65,104 @@ bool CGameScene::init()
 	return true;
 }
 
+bool CGameScene::initGameObjects(TMXTiledMap *tileMap)
+{
+	CCTMXObjectGroup *objectGroup = tileMap->objectGroupNamed("Objects");
+
+	int i = 100;
+	for (Value solid1 : objectGroup->getObjects())
+	{
+		ValueMap props = solid1.asValueMap();
+
+		if (props.at("name").asString() == "DestroyedSolid")
+		{
+			CBrick *block = new CBrick();
+			if (!block->init(this, Vec2(props.at("x").asFloat() + 77.f, props.at("y").asFloat() + 11.f), i++))
+			{
+				return false;
+			}
+		}
+		else if (props.at("name").asString() == "Solid")
+		{
+			auto gateBody = PhysicsBody::createBox(Size(props.at("width").asFloat(), props.at("height").asFloat()));
+			gateBody->setDynamic(false);
+			gateBody->setContactTestBitmask(true);
+			gateBody->setCollisionBitmask(BORDER_CONTACT_BITMASK);
+			auto gateNode = GameSprite::gameSpriteWithFile("11.png");;
+			gateNode->setPosition(Point(props.at("x").asFloat() + (props.at("width").asFloat() / 2.f) + 64.f,
+				(props.at("y").asFloat() + (props.at("height").asFloat() / 2.f))));
+			gateNode->setPhysicsBody(gateBody);
+			this->addChild(gateNode);
+		}
+		else if (props.at("name").asString() == "health")
+		{
+			char score_buffer[10];
+			sprintf(score_buffer, "%i", g_gameState.numberLivesPlayer);
+			m_labelHealthPlayer = CCLabelTTF::create("", "Arial", props.at("height").asFloat());
+			m_labelHealthPlayer->setPosition(ccp(props.at("x").asFloat() + 77.f, props.at("y").asFloat()));
+			m_labelHealthPlayer->setColor({ 255, 255, 0 });
+			m_labelHealthPlayer->setString(score_buffer);
+			this->addChild(m_labelHealthPlayer);
+		}
+		else if (props.at("name").asString() == "player")
+		{
+			m_player = new (std::nothrow) CPlayer();
+			g_gameState.posInitPlayer = Vec2(props.at("x").asFloat() + 77.f, props.at("y").asFloat() + 11.f);
+			m_player->init(g_gameState.posInitPlayer, this);
+		}
+		else if (props.at("name").asString() == "respEnemy")
+		{
+			g_gameState.respPositions.push_back(props);
+		}
+		else if (props.at("name").asString() == "Bonus")
+		{
+			g_gameState.bonusesPositions.push_back(props);
+		}
+		else if (props.at("name").asString() == "eagle")
+		{
+			m_eagleSprite = GameSprite::gameSpriteWithFile("Game/eagle.png");
+			auto bodyEagle = PhysicsBody::createBox(Size(props.at("width").asFloat(), props.at("height").asFloat()));
+			bodyEagle->setGravityEnable(false);
+			bodyEagle->setDynamic(false);
+			bodyEagle->setRotationEnable(false);
+			bodyEagle->setCollisionBitmask(MASK_EAGLE);
+			bodyEagle->setContactTestBitmask(true);
+			m_eagleSprite->setPhysicsBody(bodyEagle);
+			m_eagleSprite->setPosition(Vec2(props.at("x").asFloat() + 90.f, props.at("y").asFloat() + 20.f));
+			addChild(m_eagleSprite);
+		}
+	}
+	return true;
+}
+
+void CGameScene::CreateButton()
+{
+	m_buttons.push_back(CButton::create(this, Vec2(50.f, 275.f), 1000, TypeButton::UP, "Up.png"));
+	m_buttons.push_back(CButton::create(this, Vec2(50.f, 125.f), 1001, TypeButton::LEFT, "Left.png"));
+	m_buttons.push_back(CButton::create(this, Vec2(50.f, 200.f), 1002, TypeButton::DOWN, "Down.png"));
+	m_buttons.push_back(CButton::create(this, Vec2(50.f, 50.f), 1003, TypeButton::RIGHT, "Right.png"));
+
+	auto fire = MenuItemImage::create("psd_2_.png", "psd_back.png", CC_CALLBACK_1(CGameScene::ShootPlayer, this));
+	fire->setPosition(Point(860.f, 70.f));
+
+	auto buttonFire = Menu::create(fire, NULL);
+	buttonFire->setPosition(Point::ZERO);
+
+	this->addChild(buttonFire);
+}
+
 bool CGameScene::onTouchBegan(Touch* touches, Event* event) {
 	if (touches)
 	{
-		auto point = touches->getLocation();
 		for (auto button : m_buttons)
 		{
-			if (button->IsContainsPoint(point))
+			if (button->IsContainsPoint(touches->getLocation()))
 			{
 				button->IsTouch = true;
-				m_player->isMove = true;
-				return true;
 			}
 		}
+		m_player->isMove = true;
+		return true;
 	}
 	return false;
 }
@@ -216,9 +208,9 @@ void CGameScene::StepPlayer()
 
 void CGameScene::update(float dt)
 {
-	if (m_player->isMove)
+	if (g_gameState.numberLivesPlayer == -1)
 	{
-		StepPlayer();
+		GoToGameOverScene(this);
 	}
 	for (size_t i = 0; i != m_enemyList.size(); ++i)
 	{
@@ -228,13 +220,14 @@ void CGameScene::update(float dt)
 			m_enemyList.at(i)->Shoot(this);
 		}
 	}
-	if (g_gameState.numberLivesPlayer == -1)
+	if (m_player->isMove)
 	{
-		GoToGameOverScene(this);
+		StepPlayer();
 	}
 	if (g_gameState.remainingNumberTanks == 0 && m_enemyList.empty())
 	{
-
+		auto scene = CGameWinScene::createScene();
+		Director::getInstance()->replaceScene(TransitionFlipX::create(1, scene));
 	}
 	if (m_needTimer)
 	{
@@ -242,7 +235,7 @@ void CGameScene::update(float dt)
 		if (m_timer >= 1.5f)
 		{
 			m_needTimer = false;
-			m_player = new CPlayer();
+			m_player = new (std::nothrow) CPlayer();
 			m_player->init(g_gameState.posInitPlayer, this);
 			m_player->ReleasedBullet();
 		}
@@ -278,7 +271,7 @@ bool CGameScene::onContactBegin(cocos2d::PhysicsContact &contact)
 		((MASK_ENEMY == b->getCollisionBitmask()) &&
 		(MASK_BRICK == a->getCollisionBitmask())))
 	{
-		if (a->getNode()->getTag() != NULL &&  b->getNode()->getTag() != NULL)
+		if (a->getNode() != NULL &&  b->getNode() != NULL)
 		{
 			int tag = MASK_ENEMY == a->getCollisionBitmask() ? a->getNode()->getTag() : b->getNode()->getTag();
 			for (auto en : m_enemyList)
@@ -567,7 +560,7 @@ void CGameScene::AddEnemy(float dt)
 	if (g_gameState.numberEnemys < 5 && g_gameState.remainingNumberTanks != 0)
 	{
 		auto props = g_gameState.respPositions.at(g_gameState.numberRespPos++);
-		auto enemyResp = new CEnemy();
+		auto enemyResp = new (std::nothrow) CEnemy();
 		enemyResp->init(cocos2d::Vec2(props.at("x").asFloat() + 77.f,
 			props.at("y").asFloat() + props.at("height").asFloat() / 2.f), STATE::DOWN,
 			--g_gameState.remainingNumberTanks, this); // 100 100
@@ -614,4 +607,3 @@ void CGameScene::AddBonus()
 
 	}
 }
-

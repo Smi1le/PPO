@@ -33,10 +33,13 @@ private:
 	void AddBonus();
 
 private:
+	bool initGameObjects(cocos2d::TMXTiledMap *tileMap);
+	void CreateButton();
 	STATE m_state;
 	cocos2d::LabelTTF *m_labelHealthPlayer;
-	cocos2d::TMXTiledMap *m_tileMap;
-	cocos2d::TMXLayer *m_background;
+	GameSprite* m_eagleSprite;
+	//cocos2d::TMXTiledMap *tileMap;
+	//cocos2d::TMXLayer *m_background;
 	std::vector<CBrick*> m_blocksSprite;
 	std::vector<CButton*> m_buttons;
 	std::vector<CEnemy*> m_enemyList;

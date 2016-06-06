@@ -28,7 +28,7 @@ CBullet::CBullet(cocos2d::Vec2 const &pos, STATE const &state, cocos2d::Layer *l
 
 bool CBullet::init()
 {
-	m_bulletSprite = GameSprite::gameSpriteWithFile("Game//bullet.png");
+	m_bulletSprite = GameSprite::gameSpriteWithFile("Game/bullet.png");
 	auto bulletBody = PhysicsBody::createBox(m_bulletSprite->getContentSize());
 	bulletBody->setGravityEnable(false);
 	bulletBody->setDynamic(true);

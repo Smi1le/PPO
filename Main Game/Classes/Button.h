@@ -1,4 +1,6 @@
-#pragma once
+#ifndef __CBUTTON_H__
+#define __CBUTTON_H__
+
 #include "GameSprite.h"
 #include <string>
 
@@ -10,23 +12,20 @@ enum class TypeButton
 	UP
 };
 
-class CButton
+class CButton : public cocos2d::Layer
 {
 public:
-	bool init(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int tag, TypeButton const &tb, std::string const &f, std::string const &s);
-	void del(cocos2d::Layer * layer);
+	CButton() = default;
+	static CButton* create(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int tag, TypeButton const &tb, std::string const &f);
+	bool init(cocos2d::Layer * layer, cocos2d::Vec2 const &coordinates, int tag, TypeButton const &tb, std::string const &f);
 	int getTag() const;
 	TypeButton GetTypeButton() const;
 	bool IsTouch = false;
 	bool IsContainsPoint(cocos2d::Point const &point);
-	void Change(cocos2d::Layer * layer);
 private:
 	GameSprite *m_sprite;
-	GameSprite *m_firstSprite;
-	GameSprite *m_secondSprite;
-	int numberSprite;
 	int m_tag;
-	cocos2d::Vec2 m_origin;
-	cocos2d::Size m_visibleSize;
 	TypeButton m_type;
 };
+
+#endif // __CBUTTON_H__

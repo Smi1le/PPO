@@ -9,7 +9,7 @@ bool CPlayer::init(cocos2d::Vec2 const &pos, cocos2d::Layer *layer)
 	cocos2d::CCSize m_pScreenSize = CCDirector::sharedDirector()->getWinSize();
 	auto m_visibleSize = Director::getInstance()->getVisibleSize();
 	auto m_origin = Director::getInstance()->getVisibleOrigin();
-	m_playerSprite = GameSprite::gameSpriteWithFile("Player//player_up_1.png");
+	m_playerSprite = GameSprite::gameSpriteWithFile("Player/player_up_1.png");
 	latestTrend = STATE::UP;
 	initAnimation();
 	m_position = pos;
